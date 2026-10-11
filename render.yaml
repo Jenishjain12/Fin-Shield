@@ -1,0 +1,29 @@
+# render.yaml — Render Infrastructure-as-Code configuration for FIN-SHIELD backend.
+# Docs: https://render.com/docs/infrastructure-as-code
+#
+# REQUIRED: Before the first deploy, add the following environment variable in
+# the Render dashboard under Environment → Environment Variables:
+#
+#   DATABASE_URL  →  <your Internal Database URL from the Render Postgres service>
+#                    Example: postgresql://user:pass@dpg-xxx.oregon-postgres.render.com/finshield
+#
+# All other variables listed here are optional overrides.
+
+services:
+  - type: web
+    name: fin-shield-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: DATABASE_URL
+        sync: false          # Set manually in Render dashboard — do NOT commit the value here
+      - key: CORS_ORIGINS
+        value: https://your-frontend-domain.vercel.app  # update to your actual frontend URL
+      - key: UPLOAD_DIR
+        value: /tmp/finshield_uploads
+      - key: ENVIRONMENT
+        value: production

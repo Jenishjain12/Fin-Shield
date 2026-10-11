@@ -3,18 +3,20 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-ROOT_DIR = Path(__file__).resolve().parents[3]
-
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_name: str = "FIN-SHIELD"
     environment: str = "development"
-    database_url: str = f"sqlite:///{ROOT_DIR / 'data' / 'finshield.db'}"
+    # Production (Render): set DATABASE_URL to a postgresql:// connection string
+    # via the Render environment variable panel.  The /tmp fallback lets the
+    # process start in environments where no DATABASE_URL is configured, but
+    # data stored there is ephemeral and will be lost on restart.
+    database_url: str = "sqlite:////tmp/finshield.db"
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     similarity_threshold: float = 0.72
-    # Default to /tmp for Vercel serverless; override locally via .env
+    # Writable scratch space available on Render, Vercel serverless, and locally.
     upload_dir: str = "/tmp/finshield_uploads"
     max_upload_bytes: int = 5 * 1024 * 1024
     shared_entity_alert_threshold: int = 3

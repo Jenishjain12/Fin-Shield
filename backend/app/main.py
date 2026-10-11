@@ -31,7 +31,7 @@ app.include_router(analyze.router, prefix="/api")
 app.include_router(campaigns.router, prefix="/api")
 app.include_router(alerts.router, prefix="/api")
 
-app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
+app.mount("/uploads", StaticFiles(directory=settings.upload_dir, check_dir=False), name="uploads")
 
 
 @app.exception_handler(Exception)
