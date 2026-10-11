@@ -14,7 +14,8 @@ class Settings(BaseSettings):
     database_url: str = f"sqlite:///{ROOT_DIR / 'data' / 'finshield.db'}"
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     similarity_threshold: float = 0.72
-    upload_dir: str = str(ROOT_DIR / "data" / "uploads")
+    # Default to /tmp for Vercel serverless; override locally via .env
+    upload_dir: str = "/tmp/finshield_uploads"
     max_upload_bytes: int = 5 * 1024 * 1024
     shared_entity_alert_threshold: int = 3
     high_risk_min_score: int = 50
