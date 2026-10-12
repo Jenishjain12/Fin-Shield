@@ -18,6 +18,16 @@ export interface Signal {
   explanation: string;
   evidence: string;
   contribution: number;
+  recommendation?: string;
+}
+
+export interface Anomaly {
+  id: string;
+  anomaly_type: string;
+  title: string;
+  explanation: string;
+  evidence: string;
+  severity: string;
 }
 
 export interface Note {
@@ -58,8 +68,10 @@ export interface AdvertisementDetail extends AdvertisementSummary {
   limitations: string | null;
   recommendation: string | null;
   analyzed_at: string | null;
+  missing_data_warnings?: string[];
   entities: Entity[];
   signals: Signal[];
+  anomalies?: Anomaly[];
   notes: Note[];
   relationships: Relationship[];
 }

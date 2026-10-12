@@ -59,7 +59,11 @@ async def analyze(
     )
     db.add(ad)
     db.flush()
-    analyze_advertisement(db, ad)
-    db.commit()
+    try:
+        analyze_advertisement(db, ad)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(exc)}")
     db.refresh(ad)
     return detail(db, ad)

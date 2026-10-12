@@ -38,9 +38,45 @@ def relationships_for(db: Session, ad_id: str) -> list[RelationshipOut]:
 
 
 def detail(db: Session, ad: Advertisement) -> AdvertisementDetail:
+    from app.services.anomalies import detect_content_anomalies
+    from app.services.extraction import ExtractedItem
+    from app.services.risk import SignalResult
+
     base = summarize(db, ad)
     base_data = base.model_dump()
     base_data.pop("text", None)  # detail overrides with full text; summary carries a truncated preview
+
+    text = "\n".join(filter(None, [ad.text, ad.ocr_text, ad.source_url])).strip()
+    entity_items = [
+        ExtractedItem(
+            entity_type=e.entity_type,
+            raw_value=e.raw_value,
+            normalized_value=e.normalized_value,
+            source_text=e.source_text,
+            extraction_method=e.extraction_method,
+            confidence=e.confidence,
+        )
+        for e in ad.entities
+    ]
+    signal_items = [
+        SignalResult(
+            signal_type=s.signal_type,
+            title=s.title,
+            explanation=s.explanation,
+            evidence=s.evidence,
+            contribution=s.contribution,
+            recommendation=getattr(s, "recommendation", "") or "",
+        )
+        for s in ad.signals
+    ]
+    detected_anomalies = detect_content_anomalies(text, entity_items, signal_items)
+
+    missing_warnings: list[str] = []
+    if not (ad.text or "").strip() and not (ad.ocr_text or "").strip():
+        missing_warnings.append("No readable advertisement text was provided or extracted. Triage assessment cannot score risk without copy.")
+    if ad.ocr_status in {"empty", "failed", "unavailable"}:
+        missing_warnings.append(f"OCR status is '{ad.ocr_status}'. Image text could not be transcribed.")
+
     return AdvertisementDetail(
         **base_data,
         text=ad.text,
@@ -50,8 +86,20 @@ def detail(db: Session, ad: Advertisement) -> AdvertisementDetail:
         limitations=ad.limitations,
         recommendation=ad.recommendation,
         analyzed_at=ad.analyzed_at,
+        missing_data_warnings=missing_warnings,
         entities=ad.entities,
         signals=ad.signals,
+        anomalies=[
+            {
+                "id": a.id,
+                "anomaly_type": a.anomaly_type,
+                "title": a.title,
+                "explanation": a.explanation,
+                "evidence": a.evidence,
+                "severity": a.severity,
+            }
+            for a in detected_anomalies
+        ],
         notes=ad.notes,
         relationships=relationships_for(db, ad.id),
     )

@@ -24,6 +24,16 @@ class SignalOut(ORMModel):
     explanation: str
     evidence: str
     contribution: int
+    recommendation: str | None = None
+
+
+class AnomalyOut(ORMModel):
+    id: str
+    anomaly_type: str
+    title: str
+    explanation: str
+    evidence: str
+    severity: str
 
 
 class NoteOut(ORMModel):
@@ -68,8 +78,10 @@ class AdvertisementDetail(AdvertisementSummary):
     limitations: str | None
     recommendation: str | None
     analyzed_at: datetime | None
+    missing_data_warnings: list[str] = []
     entities: list[EntityOut] = []
     signals: list[SignalOut] = []
+    anomalies: list[AnomalyOut] = []
     notes: list[NoteOut] = []
     relationships: list[RelationshipOut] = []
 

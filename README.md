@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # FIN-SHIELD
 
 AI-powered financial advertisement intelligence platform.
@@ -86,7 +85,3 @@ VITE_API_BASE_URL=
 ```
 
 Leave `VITE_API_BASE_URL` empty when using the Vite proxy.
-=======
-# Fin-Shield
-Al-Based Detection of Suspicious Financial Advertisements
->>>>>>> 3a7824a19659431711bdfccf0927b21c5967367c

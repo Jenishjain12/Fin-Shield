@@ -19,3 +19,4 @@ frontend/.env.local
 .idea/
 .vscode/
 *.log
+*.db

@@ -8,7 +8,7 @@ from app.core.config import get_settings
 from app.models import Advertisement, AdvertisementRelationship, ExtractedEntity
 from app.services.similarity import text_similarity
 
-MATCHABLE_TYPES = ("phone", "url", "domain", "upi", "email", "account_like")
+MATCHABLE_TYPES = ("phone", "url", "domain", "upi", "email", "account_like", "crypto_wallet")
 
 
 @dataclass
@@ -63,16 +63,25 @@ def find_entity_matches(db: Session, advertisement: Advertisement) -> list[Match
     return matches
 
 
+def _effective_text(ad: Advertisement) -> str:
+    parts = [ad.text or ""]
+    if ad.ocr_text:
+        parts.append(ad.ocr_text)
+    return " ".join(part.strip() for part in parts if part.strip())
+
+
 def find_similarity_matches(db: Session, advertisement: Advertisement) -> list[MatchCandidate]:
     settings = get_settings()
-    if not advertisement.text or len(advertisement.text.split()) < 8:
+    ad_text = _effective_text(advertisement)
+    if not ad_text or len(ad_text.split()) < 8:
         return []
     others = db.query(Advertisement).filter(Advertisement.id != advertisement.id, Advertisement.analysis_status == "completed").all()
     matches: list[MatchCandidate] = []
     for other in others:
-        if not other.text or len(other.text.split()) < 8:
+        other_text = _effective_text(other)
+        if not other_text or len(other_text.split()) < 8:
             continue
-        score = text_similarity(advertisement.text, other.text)
+        score = text_similarity(ad_text, other_text)
         if score < settings.similarity_threshold:
             continue
         source, target = _ordered(advertisement.id, other.id)

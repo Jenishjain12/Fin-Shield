@@ -56,6 +56,16 @@ export function InvestigationDetailPage() {
           <span className="text-3xl font-semibold">{data.risk_score}</span>
         </div>
       </div>
+      {data.missing_data_warnings && data.missing_data_warnings.length > 0 ? (
+        <div className="rounded border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200">
+          <p className="font-semibold">Missing data notice:</p>
+          <ul className="mt-1 list-disc pl-4 space-y-1">
+            {data.missing_data_warnings.map((warn, i) => (
+              <li key={i}>{warn}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <section className="rounded-lg border border-line bg-panel p-5">
         <h2 className="text-sm font-medium">Submitted copy</h2>
         <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed">{data.text || "No text submitted."}</p>
@@ -80,9 +90,15 @@ export function InvestigationDetailPage() {
                   {signal.title} <span className="text-mute">(+{signal.contribution})</span>
                 </p>
                 <p className="mt-1 text-sm text-mute">{signal.explanation}</p>
-                <p className="mt-1 font-mono text-[11px]">{signal.evidence}</p>
+                <p className="mt-1 font-mono text-[11px] text-accent/90">{signal.evidence}</p>
+                {signal.recommendation ? (
+                  <p className="mt-1.5 text-xs text-emerald-400 font-medium">
+                    Verification: {signal.recommendation}
+                  </p>
+                ) : null}
               </li>
             ))}
+            {data.signals.length === 0 ? <p className="text-sm text-mute">No elevated rule-based indicators detected.</p> : null}
           </ul>
           <p className="mt-4 text-xs text-mute">{data.limitations}</p>
           <p className="mt-2 text-sm">{data.recommendation}</p>
@@ -90,16 +106,44 @@ export function InvestigationDetailPage() {
         <section className="rounded-lg border border-line bg-panel p-5">
           <h2 className="text-sm font-medium">Extracted entities</h2>
           <ul className="mt-3 space-y-2 text-sm">
-            {data.entities.map((entity) => (
+            {data.entities.filter((e) => e.entity_type !== "phrase").map((entity) => (
               <li key={entity.id} className="rounded border border-line px-3 py-2">
-                <span className="text-mute">{entity.entity_type}</span>{" "}
+                <span className="text-mute font-mono text-xs uppercase">{entity.entity_type}</span>{" "}
                 {maskValue(entity.entity_type, entity.normalized_value)}
                 <p className="mt-1 text-[11px] text-mute">{entity.source_text}</p>
               </li>
             ))}
+            {data.entities.filter((e) => e.entity_type !== "phrase").length === 0 ? (
+              <p className="text-sm text-mute">No contact, payment, or domain identifiers detected.</p>
+            ) : null}
           </ul>
         </section>
       </div>
+      <section className="rounded-lg border border-line bg-panel p-5">
+        <h2 className="text-sm font-medium">
+          Content anomalies ({data.anomalies ? data.anomalies.length : 0})
+        </h2>
+        {data.anomalies && data.anomalies.length > 0 ? (
+          <ul className="mt-3 space-y-2">
+            {data.anomalies.map((anomaly) => (
+              <li key={anomaly.id} className="rounded border border-line p-3 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-medium text-rose-400">{anomaly.title}</p>
+                  <span className="rounded bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-400">
+                    {anomaly.severity}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-mute">{anomaly.explanation}</p>
+                <p className="mt-1 font-mono text-[11px] text-accent/90">Evidence: {anomaly.evidence}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-sm text-mute">
+            No content anomalies detected. Advertisement claims do not exhibit extreme return outliers, contradictory statements, or institutional mismatches.
+          </p>
+        )}
+      </section>
       <section className="rounded-lg border border-line bg-panel p-5">
         <h2 className="text-sm font-medium">Related advertisements</h2>
         {data.relationships.length === 0 ? (

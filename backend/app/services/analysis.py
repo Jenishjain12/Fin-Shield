@@ -28,87 +28,95 @@ def analyze_advertisement(db: Session, advertisement: Advertisement) -> Advertis
     settings = get_settings()
     limitations: list[str] = []
 
-    if advertisement.image_filename:
-        image_path = Path(settings.upload_dir) / advertisement.image_filename
-        if image_path.exists():
-            ocr = extract_text_from_image(image_path)
-            advertisement.ocr_status = ocr.status
-            advertisement.ocr_text = ocr.text
-            if ocr.limitation:
-                limitations.append(ocr.limitation)
+    try:
+        if advertisement.image_filename:
+            image_path = Path(settings.upload_dir) / advertisement.image_filename
+            if image_path.exists():
+                ocr = extract_text_from_image(image_path)
+                advertisement.ocr_status = ocr.status
+                advertisement.ocr_text = ocr.text
+                if ocr.limitation:
+                    limitations.append(ocr.limitation)
+            else:
+                advertisement.ocr_status = "missing_file"
+                limitations.append("Uploaded image could not be located for OCR.")
         else:
-            advertisement.ocr_status = "missing_file"
-            limitations.append("Uploaded image could not be located for OCR.")
-    else:
-        advertisement.ocr_status = "not_requested"
+            advertisement.ocr_status = "not_requested"
 
-    text = combined_text(advertisement)
-    entities = extract_entities(text)
-    advertisement.entities.clear()
-    for item in entities:
-        advertisement.entities.append(
-            ExtractedEntity(
-                entity_type=item.entity_type,
-                raw_value=item.raw_value,
-                normalized_value=item.normalized_value,
-                source_text=item.source_text,
-                extraction_method=item.extraction_method,
-                confidence=item.confidence,
+        text = combined_text(advertisement)
+        entities = extract_entities(text)
+        advertisement.entities.clear()
+        for item in entities:
+            advertisement.entities.append(
+                ExtractedEntity(
+                    entity_type=item.entity_type,
+                    raw_value=item.raw_value,
+                    normalized_value=item.normalized_value,
+                    source_text=item.source_text,
+                    extraction_method=item.extraction_method,
+                    confidence=item.confidence,
+                )
             )
-        )
-    db.flush()
+        db.flush()
 
-    matches = find_entity_matches(db, advertisement) + find_similarity_matches(db, advertisement)
-    persist_matches(db, matches)
-    db.flush()
+        matches = find_entity_matches(db, advertisement) + find_similarity_matches(db, advertisement)
+        persist_matches(db, matches)
+        db.flush()
 
-    related = related_ids(db, advertisement.id)
-    similar_high_risk = False
-    from app.models import Advertisement as AdModel
-    from app.models import AdvertisementRelationship
+        related = related_ids(db, advertisement.id)
+        similar_high_risk = False
+        from app.models import Advertisement as AdModel
+        from app.models import AdvertisementRelationship
 
-    similar_rels = (
-        db.query(AdvertisementRelationship)
-        .filter(
-            AdvertisementRelationship.relationship_type == "text_similarity",
-            (AdvertisementRelationship.source_ad_id == advertisement.id)
-            | (AdvertisementRelationship.target_ad_id == advertisement.id),
-        )
-        .all()
-    )
-    for rel in similar_rels:
-        other_id = rel.target_ad_id if rel.source_ad_id == advertisement.id else rel.source_ad_id
-        other = db.get(AdModel, other_id)
-        if other and other.risk_score >= 50:
-            similar_high_risk = True
-            break
-
-    assessment = assess_risk(
-        text=text,
-        entities=entities,
-        related_count=len(related),
-        similar_high_risk=similar_high_risk,
-        ocr_limitation=limitations[0] if limitations else None,
-        url_inspected_as_string_only=bool(advertisement.source_url) or any(e.entity_type == "url" for e in entities),
-    )
-
-    advertisement.signals.clear()
-    for signal in assessment.signals:
-        advertisement.signals.append(
-            RiskSignal(
-                signal_type=signal.signal_type,
-                title=signal.title,
-                explanation=signal.explanation,
-                evidence=signal.evidence,
-                contribution=signal.contribution,
+        similar_rels = (
+            db.query(AdvertisementRelationship)
+            .filter(
+                AdvertisementRelationship.relationship_type == "text_similarity",
+                (AdvertisementRelationship.source_ad_id == advertisement.id)
+                | (AdvertisementRelationship.target_ad_id == advertisement.id),
             )
+            .all()
         )
-    advertisement.risk_score = assessment.score
-    advertisement.risk_category = assessment.category
-    advertisement.limitations = " ".join(assessment.limitations)
-    advertisement.recommendation = assessment.recommendation
-    advertisement.analysis_status = "completed"
-    advertisement.analyzed_at = datetime.now(timezone.utc)
-    db.flush()
-    generate_alerts_for_advertisement(db, advertisement)
-    return advertisement
+        for rel in similar_rels:
+            other_id = rel.target_ad_id if rel.source_ad_id == advertisement.id else rel.source_ad_id
+            other = db.get(AdModel, other_id)
+            if other and other.risk_score >= 50:
+                similar_high_risk = True
+                break
+
+        assessment = assess_risk(
+            text=text,
+            entities=entities,
+            related_count=len(related),
+            similar_high_risk=similar_high_risk,
+            ocr_limitation=limitations[0] if limitations else None,
+            url_inspected_as_string_only=bool(advertisement.source_url) or any(e.entity_type == "url" for e in entities),
+        )
+
+        advertisement.signals.clear()
+        for signal in assessment.signals:
+            advertisement.signals.append(
+                RiskSignal(
+                    signal_type=signal.signal_type,
+                    title=signal.title,
+                    explanation=signal.explanation,
+                    evidence=signal.evidence,
+                    contribution=signal.contribution,
+                    recommendation=signal.recommendation,
+                )
+            )
+        advertisement.risk_score = assessment.score
+        advertisement.risk_category = assessment.category
+        advertisement.limitations = " ".join(assessment.limitations)
+        advertisement.recommendation = assessment.recommendation
+        advertisement.analysis_status = "completed"
+        advertisement.analyzed_at = datetime.now(timezone.utc)
+        db.flush()
+        generate_alerts_for_advertisement(db, advertisement)
+        return advertisement
+    except Exception as exc:
+        advertisement.analysis_status = "failed"
+        advertisement.limitations = f"Analysis failed: {exc.__class__.__name__}: {str(exc)}"
+        advertisement.recommendation = "Analysis failed due to an internal error. Please check the submission and try again."
+        db.flush()
+        raise

@@ -104,7 +104,7 @@ export function AnalyzePage() {
         </button>
       </form>
       {result ? (
-        <section className="space-y-4 rounded-lg border border-line bg-panel p-5">
+        <section className="space-y-5 rounded-lg border border-line bg-panel p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-wide text-mute">Configured triage score</p>
@@ -112,53 +112,163 @@ export function AnalyzePage() {
             </div>
             <StatusBadge value={result.risk_category} />
           </div>
+
           <p className="text-sm text-mute">{result.recommendation}</p>
+
+          {result.missing_data_warnings && result.missing_data_warnings.length > 0 ? (
+            <div className="rounded border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200">
+              <p className="font-semibold">Missing data notice:</p>
+              <ul className="mt-1 list-disc pl-4 space-y-1">
+                {result.missing_data_warnings.map((warn, i) => (
+                  <li key={i}>{warn}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
           {result.ocr_status !== "not_requested" ? (
             <div className="rounded border border-line bg-ink/40 p-3 text-xs">
-              <span className="font-medium text-mute">OCR status:</span>{" "}
-              <span className="font-mono text-accent">{result.ocr_status}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-mute">OCR status:</span>
+                <span
+                  className={`font-mono font-medium ${
+                    result.ocr_status === "extracted"
+                      ? "text-emerald-400"
+                      : result.ocr_status === "empty" || result.ocr_status === "unavailable"
+                      ? "text-amber-400"
+                      : "text-rose-400"
+                  }`}
+                >
+                  {result.ocr_status === "extracted" && "Extracted successfully"}
+                  {result.ocr_status === "empty" && "Empty (no readable text found in image)"}
+                  {result.ocr_status === "unavailable" && "Unavailable (OCR engine not active)"}
+                  {result.ocr_status === "failed" && "Failed (image processing error)"}
+                  {result.ocr_status === "missing_file" && "Missing file error"}
+                </span>
+              </div>
               {result.ocr_text ? (
-                <p className="mt-1 text-mute">
+                <p className="mt-2 text-mute">
                   Extracted text: <span className="font-mono text-ink-text">{result.ocr_text}</span>
                 </p>
               ) : null}
             </div>
           ) : null}
+
           {result.limitations ? (
-            <p className="text-xs text-mute">{result.limitations}</p>
+            <p className="text-xs text-mute border-l-2 border-line pl-2">{result.limitations}</p>
           ) : null}
-          <div className="grid gap-4 md:grid-cols-2">
+
+          <div className="grid gap-5 md:grid-cols-2">
             <div>
-              <h2 className="text-sm font-medium">Risk indicators</h2>
+              <h2 className="text-sm font-medium">Risk indicators ({result.signals.length})</h2>
               <ul className="mt-2 space-y-2">
                 {result.signals.map((signal) => (
                   <li key={signal.id} className="rounded border border-line p-3 text-sm">
                     <p className="font-medium">{signal.title} · +{signal.contribution}</p>
-                    <p className="mt-1 text-mute">{signal.explanation}</p>
-                    <p className="mt-1 font-mono text-[11px] text-accent/80">{signal.evidence}</p>
+                    <p className="mt-1 text-xs text-mute">{signal.explanation}</p>
+                    <p className="mt-1 font-mono text-[11px] text-accent/90">Evidence: {signal.evidence}</p>
+                    {signal.recommendation ? (
+                      <p className="mt-1.5 text-[11px] text-emerald-400/90 font-medium">
+                        Verification: {signal.recommendation}
+                      </p>
+                    ) : null}
                   </li>
                 ))}
-                {result.signals.length === 0 ? <p className="text-sm text-mute">No elevated rule-based indicators.</p> : null}
+                {result.signals.length === 0 ? (
+                  <li className="rounded border border-line/60 bg-ink/20 p-3 text-xs text-mute">
+                    No elevated rule-based indicators detected.
+                  </li>
+                ) : null}
               </ul>
             </div>
+
             <div>
               <h2 className="text-sm font-medium">Extracted entities</h2>
               <ul className="mt-2 space-y-2">
                 {result.entities.filter((entity) => entity.entity_type !== "phrase").map((entity) => (
                   <li key={entity.id} className="rounded border border-line p-3 text-sm">
-                    <span className="text-mute">{entity.entity_type}</span> {entity.normalized_value}
+                    <span className="text-mute font-mono text-xs uppercase">{entity.entity_type}</span>:{" "}
+                    <span className="font-medium">{entity.normalized_value}</span>
+                    <p className="mt-0.5 text-[11px] text-mute font-mono">{entity.source_text}</p>
                   </li>
                 ))}
+                {result.entities.filter((e) => e.entity_type !== "phrase").length === 0 ? (
+                  <li className="rounded border border-line/60 bg-ink/20 p-3 text-xs text-mute">
+                    No contact, payment, or domain identifiers detected.
+                  </li>
+                ) : null}
               </ul>
             </div>
           </div>
-          <button
-            type="button"
-            className="text-sm text-accent underline"
-            onClick={() => navigate(`/investigations/${result.id}`)}
-          >
-            Open investigation details
-          </button>
+
+          <div className="space-y-3 pt-2 border-t border-line">
+            <h2 className="text-sm font-medium">
+              Content anomalies ({result.anomalies ? result.anomalies.length : 0})
+            </h2>
+            {result.anomalies && result.anomalies.length > 0 ? (
+              <ul className="space-y-2">
+                {result.anomalies.map((anomaly) => (
+                  <li key={anomaly.id} className="rounded border border-line p-3 text-sm">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-medium text-rose-400">{anomaly.title}</p>
+                      <span className="rounded bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-400">
+                        {anomaly.severity}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-mute">{anomaly.explanation}</p>
+                    <p className="mt-1 font-mono text-[11px] text-accent/90">Evidence: {anomaly.evidence}</p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="rounded border border-line/60 bg-ink/20 p-3 text-xs text-mute">
+                No content anomalies detected. Stated advertisement claims do not display extreme return outliers, conflicting risk statements, or institutional credential mismatches.
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3 pt-2 border-t border-line">
+            <h2 className="text-sm font-medium">
+              Related advertisements in database ({result.relationships ? result.relationships.length : 0})
+            </h2>
+            {result.relationships && result.relationships.length > 0 ? (
+              <ul className="space-y-2">
+                {result.relationships.map((rel) => {
+                  const other = rel.source_ad_id === result.id ? rel.target_ad_id : rel.source_ad_id;
+                  return (
+                    <li key={rel.id} className="rounded border border-line p-3 text-sm">
+                      <button
+                        type="button"
+                        className="font-medium text-accent underline hover:opacity-80"
+                        onClick={() => navigate(`/investigations/${other}`)}
+                      >
+                        Connected record: {other.slice(0, 8)}…
+                      </button>
+                      <p className="mt-1 text-xs text-mute">
+                        {rel.relationship_type.replace("_", " ")}
+                        {rel.similarity_score != null ? ` · similarity ${rel.similarity_score}` : ""} · {rel.explanation}
+                      </p>
+                      <p className="mt-1 font-mono text-[11px] text-accent/80">Evidence key: {rel.evidence}</p>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <div className="rounded border border-line/60 bg-ink/20 p-3 text-xs text-mute">
+                No cross-advertisement relationships found in the current dataset.
+              </div>
+            )}
+          </div>
+
+          <div className="pt-2">
+            <button
+              type="button"
+              className="text-sm text-accent underline"
+              onClick={() => navigate(`/investigations/${result.id}`)}
+            >
+              Open full investigation workspace →
+            </button>
+          </div>
         </section>
       ) : null}
     </div>

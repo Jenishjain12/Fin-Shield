@@ -30,6 +30,15 @@ async def lifespan(app: FastAPI):
         ocr_status.version or "N/A",
         ocr_status.languages,
     )
+    try:
+        from app.db.session import SessionLocal
+        from seed import seed
+        with SessionLocal() as db:
+            created = seed(db)
+            if created:
+                logging.getLogger("finshield.startup").info("Seeded %d synthetic demonstration records on startup.", created)
+    except Exception as exc:
+        logging.getLogger("finshield.startup").warning("Auto-seed on startup: %s", exc)
     yield
 
 

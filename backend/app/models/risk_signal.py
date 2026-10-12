@@ -16,5 +16,6 @@ class RiskSignal(Base):
     explanation: Mapped[str] = mapped_column(Text)
     evidence: Mapped[str] = mapped_column(Text, default="")
     contribution: Mapped[int] = mapped_column(Integer, default=0)
+    recommendation: Mapped[str | None] = mapped_column(Text, nullable=True, default="")
 
     advertisement = relationship("Advertisement", back_populates="signals")
