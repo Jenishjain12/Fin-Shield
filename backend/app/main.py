@@ -1,3 +1,5 @@
+import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -10,12 +12,28 @@ from app.core.config import get_settings
 from app.db.base import Base
 from app.db.session import engine
 from app.models import Alert, AnalystNote, Advertisement, AdvertisementRelationship, ExtractedEntity, RiskSignal  # noqa: F401
+from app.services.ocr import get_ocr_engine_status
 
 settings = get_settings()
 Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="FIN-SHIELD", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logging.basicConfig(level=getattr(logging, settings.log_level.upper(), logging.INFO))
+    ocr_status = get_ocr_engine_status()
+    logging.getLogger("finshield.startup").info(
+        "FIN-SHIELD starting up. OCR available: %s (path: %s, version: %s, langs: %s)",
+        ocr_status.available,
+        ocr_status.tesseract_path or "PATH",
+        ocr_status.version or "N/A",
+        ocr_status.languages,
+    )
+    yield
+
+
+app = FastAPI(title="FIN-SHIELD", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,

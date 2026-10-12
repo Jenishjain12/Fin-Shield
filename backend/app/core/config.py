@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     shared_entity_alert_threshold: int = 3
     high_risk_min_score: int = 50
     log_level: str = "INFO"
+    tesseract_cmd: str | None = None
 
     @property
     def cors_origin_list(self) -> list[str]:

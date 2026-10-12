@@ -113,6 +113,20 @@ export function AnalyzePage() {
             <StatusBadge value={result.risk_category} />
           </div>
           <p className="text-sm text-mute">{result.recommendation}</p>
+          {result.ocr_status !== "not_requested" ? (
+            <div className="rounded border border-line bg-ink/40 p-3 text-xs">
+              <span className="font-medium text-mute">OCR status:</span>{" "}
+              <span className="font-mono text-accent">{result.ocr_status}</span>
+              {result.ocr_text ? (
+                <p className="mt-1 text-mute">
+                  Extracted text: <span className="font-mono text-ink-text">{result.ocr_text}</span>
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          {result.limitations ? (
+            <p className="text-xs text-mute">{result.limitations}</p>
+          ) : null}
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <h2 className="text-sm font-medium">Risk indicators</h2>

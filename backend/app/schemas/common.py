@@ -125,3 +125,6 @@ class HealthOut(BaseModel):
     status: str
     service: str
     dataset: str
+    ocr_available: bool = False
+    ocr_engine: str | None = None
+    ocr_languages: list[str] = []
